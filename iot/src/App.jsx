@@ -1,122 +1,143 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import heroImg from './assets/hero.png'
-import './App.css'
+import { useState, useEffect } from 'react'
+import TemperatureScreen from './screens/TemperatureScreen'
+import PermissionScreen from './screens/PermissionScreen'
+import AccessDeniedScreen from './screens/AccessDeniedScreen'
+import LoginScreen from './screens/LoginScreen'
+import RegisterScreen from './screens/RegisterScreen'
+import BottomNav from './components/BottomNav'
+import { useAuth } from './context/AuthContext'
+import './index.css'
 
-function App() {
-  const [count, setCount] = useState(0)
-
-  return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.jsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
-
-      <div className="ticks"></div>
-
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
-
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
-  )
+function resolveInitialPage(user) {
+  if (!user) return 'login'
+  if (user.role === 'admin') return 'temperature'
+  if (user.canViewData) return 'temperature'
+  return 'denied'
 }
 
-export default App
+export default function App() {
+  const { user, logout } = useAuth()
+  const [currentPage, setCurrentPage] = useState('login')
+
+  useEffect(() => {
+    if (user) {
+      if (currentPage === 'login' || currentPage === 'register') {
+        setCurrentPage(resolveInitialPage(user))
+      }
+    } else {
+      if (currentPage !== 'login' && currentPage !== 'register') {
+        setCurrentPage('login')
+      }
+    }
+  }, [user])
+
+  function handleNavigate(destination) {
+    if (destination === 'home') {
+      if (user?.canViewData) {
+        setCurrentPage('temperature')
+      } else {
+        setCurrentPage('denied')
+      }
+      return
+    }
+    setCurrentPage(destination)
+  }
+
+  function renderActiveScreen() {
+    if (!user) {
+      if (currentPage === 'register') {
+        return <RegisterScreen onNavigateToLogin={() => setCurrentPage('login')} />
+      }
+      return <LoginScreen onNavigateToRegister={() => setCurrentPage('register')} />
+    }
+
+    if (currentPage === 'permission' && user.role === 'admin') {
+      return <PermissionScreen />
+    }
+
+    if (currentPage === 'denied') {
+      return <AccessDeniedScreen />
+    }
+
+    if (currentPage === 'temperature') {
+      if (user.role === 'admin' || user.canViewData) {
+        return <TemperatureScreen />
+      }
+      return <AccessDeniedScreen />
+    }
+
+    return <TemperatureScreen />
+  }
+
+  return (
+    <div id="app-root">
+      {user && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            zIndex: 200,
+            background: 'rgba(10,14,26,0.96)',
+            borderBottom: '1px solid rgba(255,255,255,0.06)',
+            padding: '8px 16px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            backdropFilter: 'blur(20px)',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span style={{ fontSize: '11px', color: 'var(--color-text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.8px' }}>
+              Tài khoản:
+            </span>
+            <span
+              style={{
+                fontSize: '12px',
+                fontWeight: 700,
+                color: user.role === 'admin' ? 'var(--color-accent-blue)' : 'var(--color-accent-green)',
+                background: user.role === 'admin' ? 'rgba(59,130,246,0.12)' : 'rgba(16,185,129,0.12)',
+                padding: '2px 10px',
+                borderRadius: 'var(--radius-full)',
+                border: `1px solid ${user.role === 'admin' ? 'rgba(59,130,246,0.25)' : 'rgba(16,185,129,0.25)'}`,
+              }}
+            >
+              {user.role === 'admin' ? '👑 Admin' : `👤 ${user.username}`}
+            </span>
+          </div>
+
+          <div className="role-switcher">
+            <button
+              onClick={logout}
+              style={{
+                background: 'rgba(239, 68, 68, 0.1)',
+                color: 'var(--color-accent-red)',
+                border: '1px solid rgba(239, 68, 68, 0.2)',
+                padding: '4px 12px',
+                borderRadius: 'var(--radius-full)',
+                fontSize: '12px',
+                fontWeight: 600,
+                cursor: 'pointer'
+              }}
+            >
+              Đăng xuất
+            </button>
+          </div>
+        </div>
+      )}
+
+      <div style={{ paddingTop: user ? '45px' : '0', minHeight: '100dvh', display: 'flex', flexDirection: 'column' }}>
+        {renderActiveScreen()}
+      </div>
+
+      {user && (
+        <BottomNav
+          currentPage={currentPage}
+          onNavigate={handleNavigate}
+          userRole={user.role}
+        />
+      )}
+    </div>
+  )
+}
