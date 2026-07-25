@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 const API_BASE_URL = import.meta.env.PROD 
-  ? 'https://iot-backend-mg1n.onrender.com/api' 
+  ? 'https://iot-backend-jy6f.onrender.com/api' 
   : 'http://localhost:3000/api';
 
 const api = axios.create({
